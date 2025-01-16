@@ -9,8 +9,12 @@ if __name__ == "__main__":
     # reading the YAML file
     config = Input(
         **read_yaml_credentials_file(
-            file_path=Path(__file__).resolve().parents[0],
-            file_name="config.yaml",
+            file_path=Path.joinpath(
+                Path(__file__).resolve().parents[0],
+                "configs",
+                "one_category",
+            ),
+            file_name="pollution.yaml",
         )
     )
 

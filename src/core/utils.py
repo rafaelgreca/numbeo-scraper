@@ -8,6 +8,13 @@ from pydantic.fields import FieldInfo
 
 
 def partial_model(model: Type[BaseModel]):
+    """
+    Make some fields optional.
+
+    Args:
+        model (Type[BaseModel]): the Pydantic's base model class.
+    """
+
     def make_field_optional(
         field: FieldInfo, default: Any = None
     ) -> Tuple[Any, FieldInfo]:
@@ -22,14 +29,15 @@ def partial_model(model: Type[BaseModel]):
         __module__=model.__module__,
         **{
             field_name: make_field_optional(field_info)
-            for field_name, field_info in model.__fields__.items()
+            for field_name, field_info in model.model_fields.items()
             if field_name in ["regions"]
         },
     )
 
 
 def read_yaml_credentials_file(file_path: Path, file_name: str) -> Dict:
-    """Reads a YAML file.
+    """
+    Reads a YAML file.
 
     Args:
         file_path (Path): the file's path.

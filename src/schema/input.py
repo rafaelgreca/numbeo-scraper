@@ -11,7 +11,14 @@ class Input(BaseModel):
     Input schema.
     """
 
-    category: Union[str, List[str]] = Literal["cost-of-living"]
+    category: Union[str, List[str]] = Literal[
+        "cost-of-living",
+        "quality-of-life",
+        "crime",
+        "health-care",
+        "pollution",
+        "traffic",
+    ]
     mode: str = Literal["country", "city"]
     years: Union[int, List[Union[int, str]]] = Literal[2023, 2024, 2025]
     regions: Optional[Union[str, List[str], None]] = Literal[

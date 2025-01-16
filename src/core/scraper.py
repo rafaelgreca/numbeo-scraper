@@ -8,13 +8,13 @@ from bs4 import BeautifulSoup
 from ..schema.input import Input
 
 
-BASE_URL = 'https://www.numbeo.com/'
+BASE_URL = "https://www.numbeo.com/"
 REGIONS_MAPPING = {
-    'Africa': '002',
-    'America': '019',
-    'Asia': '142',
-    'Europe': '150',
-    'Oceania': '009',
+    "Africa": "002",
+    "America": "019",
+    "Asia": "142",
+    "Europe": "150",
+    "Oceania": "009",
 }
 
 
@@ -66,7 +66,7 @@ class NumbeoScraper:
         """
         dataframes = []
 
-        if self.mode == 'country':
+        if self.mode == "country":
             # iterating over the categories
             for category in self.category:
                 if not self.regions is None:
@@ -76,14 +76,14 @@ class NumbeoScraper:
                             category=category,
                             region=region,
                         )
-                        data_name = f'{category}_{self.mode}'
+                        data_name = f"{category}_{self.mode}"
                         dataframes.append((data_name, data))
                 else:
                     data = self._country_mode(
                         category=category,
                         region=self.regions,
                     )
-                    data_name = f'{category}_{self.mode}'
+                    data_name = f"{category}_{self.mode}"
                     dataframes.append((data_name, data))
 
         return dataframes
@@ -109,41 +109,44 @@ class NumbeoScraper:
         dataframes = pd.DataFrame()
 
         for year in self.years:
-            country_page = 'rankings_by_country.jsp'
+            country_page = "rankings_by_country.jsp"
 
             if region is None:
-                full_url = f'{BASE_URL}/{category}/{country_page}?title={year}'
+                full_url = f"{BASE_URL}/{category}/{country_page}?title={year}"
             else:
                 region_code = REGIONS_MAPPING[region]
-                full_url = f'{BASE_URL}/{category}/{country_page}?title={year}&region={region_code}'
+                full_url = f"{BASE_URL}/{category}/{country_page}?title={year}&region={region_code}"
 
             request = requests.get(full_url, timeout=300)
 
             if request.status_code == 200:
-                numbeo_html_data = BeautifulSoup(request.text, 'html.parser')
-                main_table = numbeo_html_data.find('table', attrs={'id':'t2'})
+                numbeo_html_data = BeautifulSoup(request.text, "html.parser")
+                main_table = numbeo_html_data.find("table", attrs={"id": "t2"})
 
-                main_table_header = main_table.find('thead')
-                main_table_header_rows = main_table_header.find_all('th')
+                main_table_header = main_table.find("thead")
+                main_table_header_rows = main_table_header.find_all("th")
                 table_columns_name = [row.text for row in main_table_header_rows]
                 dataframe = pd.DataFrame(columns=table_columns_name)
 
-                main_table_body = main_table.find('tbody')
-                main_table_rows = main_table_body.find_all('tr')
+                main_table_body = main_table.find("tbody")
+                main_table_rows = main_table_body.find_all("tr")
 
                 for rank, row in enumerate(main_table_rows, start=1):
-                    data = row.find_all('td')[1:]
+                    data = row.find_all("td")[1:]
                     data = [d.text for d in data]
-                    data = [rank] + data # appeding rank to the list
-                    data = np.asarray(data).reshape(1, -1).tolist() # reshaping so we can concatenate it
+                    data = [rank] + data  # appeding rank to the list
+                    data = (
+                        np.asarray(data).reshape(1, -1).tolist()
+                    )  # reshaping so we can concatenate it
 
-                    new_row = pd.DataFrame(
-                        data,
-                        columns=table_columns_name
+                    new_row = pd.DataFrame(data, columns=table_columns_name)
+                    dataframe = pd.concat(
+                        [dataframe, new_row], axis=0, ignore_index=True
                     )
-                    dataframe = pd.concat([dataframe, new_row], axis=0, ignore_index=True)
 
-                dataframe['Year'] = [year] * dataframe.shape[0]
-                dataframes = pd.concat([dataframes, dataframe], axis=0, ignore_index=True)
+                dataframe["Year"] = [year] * dataframe.shape[0]
+                dataframes = pd.concat(
+                    [dataframes, dataframe], axis=0, ignore_index=True
+                )
 
         return dataframes
