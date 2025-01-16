@@ -50,9 +50,7 @@ class Input(BaseModel):
         "2024-mid",
         2025,
     ]
-    regions: Literal[
-        "Africa", "America", "Asia", "Europe", "Oceania"
-    ]
+    regions: Literal["Africa", "America", "Asia", "Europe", "Oceania"]
     currency: Literal[
         "AED",
         "AFN",
