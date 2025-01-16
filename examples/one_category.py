@@ -14,7 +14,7 @@ if __name__ == "__main__":
                 "configs",
                 "one_category",
             ),
-            file_name="pollution.yaml",
+            file_name="property-investment.yaml",
         )
     )
 

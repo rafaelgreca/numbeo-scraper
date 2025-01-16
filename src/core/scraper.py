@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from ..schema.input import Input
 
 
-BASE_URL = "https://www.numbeo.com/"
+BASE_URL = "https://www.numbeo.com"
 REGIONS_MAPPING = {
     "Africa": "002",
     "America": "019",

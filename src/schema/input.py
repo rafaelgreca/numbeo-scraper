@@ -18,6 +18,7 @@ class Input(BaseModel):
         "health-care",
         "pollution",
         "traffic",
+        "property-investment",
     ]
     mode: str = Literal["country", "city"]
     years: Union[int, List[Union[int, str]]] = Literal[
