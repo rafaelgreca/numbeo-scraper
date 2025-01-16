@@ -43,6 +43,7 @@ VALID_CATEGORIES = Literal[
     "pollution",
     "traffic",
     "property-investment",
+    "historical-data",
 ]
 
 VALID_MODES = Literal["country", "city"]
@@ -444,6 +445,64 @@ VALID_COUNTRIES = Literal[
     "Zimbabwe",
 ]
 
+VALID_ITEMS = Literal[
+    "Price per Square Meter to Buy Apartment Outside of Centre",
+    "Price per Square Meter to Buy Apartment in City Centre",
+    "International Primary School, Yearly for 1 Child",
+    "Preschool (or Kindergarten), Full Day, Private, Monthly for 1 Child",
+    "1 Pair of Jeans (Levis 501 Or Similar)",
+    "1 Pair of Men Leather Business Shoes",
+    "1 Pair of Nike Running Shoes (Mid-Range)",
+    "1 Summer Dress in a Chain Store (Zara, H&M, ...)",
+    "Apples (1kg)",
+    "Banana (1kg)",
+    "Beef Round (1kg) (or Equivalent Back Leg Red Meat)",
+    "Bottle of Wine (Mid-Range)",
+    "Chicken Fillets (1kg)",
+    "Cigarettes 20 Pack (Marlboro)",
+    "Domestic Beer (0.5 liter bottle)",
+    "Eggs (regular) (12)",
+    "Markets: Imported Beer (0.33 liter bottle)",
+    "Lettuce (1 head)",
+    "Loaf of Fresh White Bread (500g)",
+    "Local Cheese (1kg)",
+    "Milk (regular), (1 liter)",
+    "Onion (1kg)",
+    "Oranges (1kg)",
+    "Potato (1kg)",
+    "Rice (white), (1kg)",
+    "Tomato (1kg)",
+    "Water (1.5 liter bottle)",
+    "Apartment (1 bedroom) Outside of Centre",
+    "Apartment (1 bedroom) in City Centre",
+    "Apartment (3 bedrooms) Outside of Centre",
+    "Apartment (3 bedrooms) in City Centre",
+    "Cappuccino (regular)",
+    "Coke/Pepsi (0.33 liter bottle)",
+    "Domestic Beer (0.5 liter draught)",
+    "Restaurants: Imported Beer (0.33 liter bottle)",
+    "McMeal at McDonalds (or Equivalent Combo Meal)",
+    "Meal for 2 People, Mid-range Restaurant, Three-course",
+    "Meal, Inexpensive Restaurant",
+    "Water (0.33 liter bottle)",
+    "Average Monthly Net Salary (After Tax)",
+    "Mortgage Interest Rate in Percentages (%), Yearly, for 20 Years Fixed-Rate",
+    "Cinema, International Release, 1 Seat",
+    "Fitness Club, Monthly Fee for 1 Adult",
+    "Tennis Court Rent (1 Hour on Weekend)",
+    "Gasoline (1 liter)",
+    "Monthly Pass (Regular Price)",
+    "One-way Ticket (Local Transport)",
+    "Taxi 1hour Waiting (Normal Tariff)",
+    "Taxi 1km (Normal Tariff)",
+    "Taxi Start (Normal Tariff)",
+    "Toyota Corolla Sedan 1.6l 97kW Comfort (Or Equivalent New Car)",
+    "Volkswagen Golf 1.4 90 KW Trendline (Or Equivalent New Car)",
+    "Basic (Electricity, Heating, Cooling, Water, Garbage) for 85m2 Apartment",
+    "Internet (60 Mbps or More, Unlimited Data, Cable/ADSL)",
+    "Mobile Phone Monthly Plan with Calls and 10GB+ Data",
+]
+
 
 @partial_model
 class Input(BaseModel):
@@ -457,3 +516,4 @@ class Input(BaseModel):
     regions: VALID_REGIONS
     currency: VALID_CURRENCIES
     countries: Union[VALID_COUNTRIES, List[VALID_COUNTRIES]]
+    historical_items: Union[VALID_ITEMS, List[VALID_ITEMS]]
