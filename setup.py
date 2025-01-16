@@ -1,9 +1,7 @@
 from setuptools import setup, find_packages
 
 VERSION = "1.0.0"
-DESCRIPTION = """
-A Numbeo Scraper developed using Python 3.
-"""
+DESCRIPTION = """A Numbeo Scraper developed using Python 3."""
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
