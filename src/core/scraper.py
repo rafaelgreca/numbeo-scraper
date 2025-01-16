@@ -41,6 +41,14 @@ class NumbeoScraper:
         else:
             self.regions = None
 
+        if not config.countries is None:
+            if isinstance(config.countries, str):
+                self.countries = [config.countries]
+            else:
+                self.countries = config.countries
+        else:
+            self.countries = None
+
         if isinstance(config.categories, str):
             self.categories = [config.categories]
         else:
@@ -153,5 +161,10 @@ class NumbeoScraper:
                 dataframes = pd.concat(
                     [dataframes, dataframe], axis=0, ignore_index=True
                 )
+
+        if not self.countries is None:
+            dataframes = dataframes[
+                dataframes["Country"].isin(self.countries)
+            ].reset_index(drop=True)
 
         return dataframes
