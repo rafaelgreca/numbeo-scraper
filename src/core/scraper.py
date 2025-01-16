@@ -41,15 +41,20 @@ class NumbeoScraper:
         else:
             self.regions = None
 
-        if isinstance(config.category, str):
-            self.category = [config.category]
+        if isinstance(config.categories, str):
+            self.categories = [config.categories]
         else:
-            self.category = config.category
+            self.categories = config.categories
 
         if isinstance(config.years, int):
             self.years = [config.years]
         else:
             self.years = config.years
+
+        if not config.currency is None:
+            self.currency = config.currency
+        else:
+            self.currency = None
 
         self.mode = config.mode
 
@@ -68,7 +73,7 @@ class NumbeoScraper:
 
         if self.mode == "country":
             # iterating over the categories
-            for category in self.category:
+            for category in self.categories:
                 if not self.regions is None:
                     # iterating over the regions, if not none
                     for region in self.regions:
