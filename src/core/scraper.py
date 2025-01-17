@@ -183,6 +183,8 @@ class NumbeoScraper:
 
         # iterating over the categories
         for category in self.categories:
+            data = pd.DataFrame()
+
             if self.mode == "country":
                 if category == "historical-data":
                     data = self._historical_data_country_mode(
@@ -197,6 +199,11 @@ class NumbeoScraper:
             else:
                 if category in ["cost-of-living", "property-investment"]:
                     data = self._city_mode(
+                        category=category,
+                        cities=self.cities,
+                    )
+                elif category == "quality-of-life":
+                    data = self._quality_of_life_city_mode(
                         category=category,
                         cities=self.cities,
                     )
@@ -430,6 +437,79 @@ class NumbeoScraper:
                     city_dataframe = pd.concat(
                         [city_dataframe, row_df], axis=0, ignore_index=True
                     )
+
+            dataframes = pd.concat(
+                [dataframes, city_dataframe], axis=0, ignore_index=True
+            )
+
+        return dataframes
+
+    def _quality_of_life_city_mode(
+        self,
+        category: str,
+        cities: Union[str, List[str]],
+    ) -> pd.DataFrame:
+        """
+        Extracts the cost of living considering the 'city mode',
+        which means that the data extracted will be for the desired city.
+
+        Args:
+            category (str): the current category.
+            cities (Union[str, List[str]]): the cities that will be scraped.
+
+        Returns:
+            dataframes (List[Tuple[str, pd.DataFrame]]): a list containing
+                the historical data (saved in a dataframe format) for the given
+                cities.
+        """
+        dataframes = pd.DataFrame()
+
+        for city in cities:
+            city_dataframe = pd.DataFrame()
+
+            full_url = f"{BASE_URL}/{category}/in/{city.replace(' ', '-')}"
+
+            request = requests.get(full_url, timeout=300)
+
+            if request.status_code == 200:
+                numbeo_html_data = BeautifulSoup(request.text, "html.parser")
+
+                # getting the table values and removing the index table value
+                main_table_rows = numbeo_html_data.find_all(
+                    "td", attrs={"style": "text-align: right"}
+                )
+                rows_values = [row.text.strip() for row in main_table_rows][1:]
+
+                # getting the table levels
+                main_table_rows = numbeo_html_data.find_all(
+                    "td", attrs={"style": "text-align: center; font-weight: 600"}
+                )
+                main_table_rows_cont = numbeo_html_data.find_all(
+                    "td", attrs={"style": "text-align: center"}
+                ) # getting the table footer level individually
+                main_table_rows.extend(main_table_rows_cont)
+                rows_levels = [row.text.strip() for row in main_table_rows]
+
+                # getting the name of the categories
+                main_table_rows = numbeo_html_data.find_all(
+                    "a", attrs={"class": "discreet_link"}
+                )
+                rows_labels = [row.text.strip() for row in main_table_rows][1:-1]
+                rows_labels.append("Quality of Life Index") # fixing the footer label
+
+                row_df = pd.DataFrame(
+                    {
+                        "Category": rows_labels,
+                        "Value": rows_values,
+                        "Level": rows_levels,
+                    }
+                )
+
+                row_df["City"] = [city] * row_df.shape[0]
+
+                city_dataframe = pd.concat(
+                    [city_dataframe, row_df], axis=0, ignore_index=True
+                )
 
             dataframes = pd.concat(
                 [dataframes, city_dataframe], axis=0, ignore_index=True
