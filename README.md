@@ -91,8 +91,8 @@ python3 -m unittest discover -p 'test_*.py'
     - [x] Extract the data related to the pollution index of each country.
     - [x] Extract the data related to the traffic index of each country.
 - [ ] City
-    - [ ] Extract the data related to the cost of living of each city.
-    - [ ] Extract the data related to the property prices of each city.
+    - [x] Extract the data related to the cost of living of each city.
+    - [x] Extract the data related to the property prices of each city.
     - [ ] Extract the data related to the quality of life of each city.
     - [ ] Extract the data related to the crime index of each city.
     - [ ] Extract the data related to the health care index of each city.

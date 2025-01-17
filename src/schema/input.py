@@ -517,3 +517,4 @@ class Input(BaseModel):
     currency: VALID_CURRENCIES
     countries: Union[VALID_COUNTRIES, List[VALID_COUNTRIES]]
     historical_items: Union[VALID_ITEMS, List[VALID_ITEMS]]
+    cities: Union[str, List[str]]

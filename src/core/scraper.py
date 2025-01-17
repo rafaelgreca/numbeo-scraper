@@ -1,4 +1,5 @@
 import requests
+import re
 from typing import List, Tuple, Union
 from functools import reduce
 
@@ -97,7 +98,7 @@ class NumbeoScraper:
             else:
                 self.regions = config.regions
         else:
-            self.regions = None
+            self.regions = [None]
 
         if not config.historical_items is None:
             if isinstance(config.historical_items, str):
@@ -114,6 +115,14 @@ class NumbeoScraper:
                 self.countries = config.countries
         else:
             self.countries = None
+
+        if not config.cities is None:
+            if isinstance(config.cities, str):
+                self.cities = [config.cities]
+            else:
+                self.cities = config.cities
+        else:
+            self.cities = None
 
         if isinstance(config.categories, str):
             self.categories = [config.categories]
@@ -147,6 +156,18 @@ class NumbeoScraper:
 
         self.mode = config.mode
 
+        # validating if cities is None when the mode is 'city'
+        if self.mode == "city":
+            try:
+                assert not self.cities is None
+            except AssertionError as error:
+                raise AssertionError("Cities can not be empty!\n") from error
+
+            try:
+                assert not self.currency is None
+            except AssertionError as error:
+                raise AssertionError("Currency can not be empty!\n") from error
+
     def scrap(
         self,
     ) -> List[Tuple[str, pd.DataFrame]]:
@@ -160,9 +181,9 @@ class NumbeoScraper:
         """
         dataframes = []
 
-        if self.mode == "country":
-            # iterating over the categories
-            for category in self.categories:
+        # iterating over the categories
+        for category in self.categories:
+            if self.mode == "country":
                 if category == "historical-data":
                     data = self._historical_data_country_mode(
                         itens=self.historical_items,
@@ -170,31 +191,28 @@ class NumbeoScraper:
                     )
                     data_name = f"{category}_{self.mode}"
                     dataframes.append((data_name, data))
-
                 else:
-                    if not self.regions is None:
-                        # iterating over the regions, if not none
-                        for region in self.regions:
-                            data = self._country_mode(
-                                category=category,
-                                region=region,
-                            )
-                            data_name = f"{category}_{self.mode}"
-                            dataframes.append((data_name, data))
-                    else:
-                        data = self._country_mode(
-                            category=category,
-                            region=self.regions,
-                        )
-                        data_name = f"{category}_{self.mode}"
-                        dataframes.append((data_name, data))
+                    data = self._country_mode(
+                        category=category,
+                        regions=self.regions,
+                    )
+                    data_name = f"{category}_{self.mode}"
+                    dataframes.append((data_name, data))
+            else:
+                if category in ["cost-of-living", "property-investment"]:
+                    data = self._city_mode(
+                        category=category,
+                        cities=self.cities,
+                    )
+                    data_name = f"{category}_{self.mode}"
+                    dataframes.append((data_name, data))
 
         return dataframes
 
     def _country_mode(
         self,
         category: str,
-        region: Union[str, List[str]],
+        regions: Union[str, List[str]],
     ) -> pd.DataFrame:
         """
         Extracts the data considering the 'country mode', which means that
@@ -211,46 +229,47 @@ class NumbeoScraper:
         """
         dataframes = pd.DataFrame()
 
-        for year in self.years:
-            country_page = "rankings_by_country.jsp"
+        for region in regions:
+            for year in self.years:
+                country_page = "rankings_by_country.jsp"
 
-            if region is None:
-                full_url = f"{BASE_URL}/{category}/{country_page}?title={year}"
-            else:
-                region_code = REGIONS_MAPPING[region]
-                full_url = f"{BASE_URL}/{category}/{country_page}?title={year}&region={region_code}"
+                if region is None:
+                    full_url = f"{BASE_URL}/{category}/{country_page}?title={year}"
+                else:
+                    region_code = REGIONS_MAPPING[region]
+                    full_url = f"{BASE_URL}/{category}/{country_page}?title={year}&region={region_code}"
 
-            request = requests.get(full_url, timeout=300)
+                request = requests.get(full_url, timeout=300)
 
-            if request.status_code == 200:
-                numbeo_html_data = BeautifulSoup(request.text, "html.parser")
-                main_table = numbeo_html_data.find("table", attrs={"id": "t2"})
+                if request.status_code == 200:
+                    numbeo_html_data = BeautifulSoup(request.text, "html.parser")
+                    main_table = numbeo_html_data.find("table", attrs={"id": "t2"})
 
-                main_table_header = main_table.find("thead")
-                main_table_header_rows = main_table_header.find_all("th")
-                table_columns_name = [row.text for row in main_table_header_rows]
-                dataframe = pd.DataFrame(columns=table_columns_name)
+                    main_table_header = main_table.find("thead")
+                    main_table_header_rows = main_table_header.find_all("th")
+                    table_columns_name = [row.text for row in main_table_header_rows]
+                    dataframe = pd.DataFrame(columns=table_columns_name)
 
-                main_table_body = main_table.find("tbody")
-                main_table_rows = main_table_body.find_all("tr")
+                    main_table_body = main_table.find("tbody")
+                    main_table_rows = main_table_body.find_all("tr")
 
-                for rank, row in enumerate(main_table_rows, start=1):
-                    data = row.find_all("td")[1:]
-                    data = [d.text for d in data]
-                    data = [rank] + data  # appeding rank to the list
-                    data = (
-                        np.asarray(data).reshape(1, -1).tolist()
-                    )  # reshaping so we can concatenate it
+                    for rank, row in enumerate(main_table_rows, start=1):
+                        data = row.find_all("td")[1:]
+                        data = [d.text for d in data]
+                        data = [rank] + data  # appeding rank to the list
+                        data = (
+                            np.asarray(data).reshape(1, -1).tolist()
+                        )  # reshaping so we can concatenate it
 
-                    new_row = pd.DataFrame(data, columns=table_columns_name)
-                    dataframe = pd.concat(
-                        [dataframe, new_row], axis=0, ignore_index=True
+                        new_row = pd.DataFrame(data, columns=table_columns_name)
+                        dataframe = pd.concat(
+                            [dataframe, new_row], axis=0, ignore_index=True
+                        )
+
+                    dataframe["Year"] = [year] * dataframe.shape[0]
+                    dataframes = pd.concat(
+                        [dataframes, dataframe], axis=0, ignore_index=True
                     )
-
-                dataframe["Year"] = [year] * dataframe.shape[0]
-                dataframes = pd.concat(
-                    [dataframes, dataframe], axis=0, ignore_index=True
-                )
 
         if not self.countries is None:
             dataframes = dataframes[
@@ -270,7 +289,7 @@ class NumbeoScraper:
 
         Args:
             itens (Union[str, List[str]]): the itens that will be scraped.
-            countries (Union[str, List[str]]): the itens that will be scraped.
+            countries (Union[str, List[str]]): the countries that will be scraped.
 
         Returns:
             dataframes (List[Tuple[str, pd.DataFrame]]): a list containing
@@ -335,4 +354,87 @@ class NumbeoScraper:
         dataframes = dataframes[dataframes["Year"].isin(self.years)].reset_index(
             drop=True
         )
+        return dataframes
+
+    def _city_mode(
+        self,
+        category: str,
+        cities: Union[str, List[str]],
+    ) -> pd.DataFrame:
+        """
+        Extracts the cost of living considering the 'city mode',
+        which means that the data extracted will be for the desired city.
+
+        Args:
+            category (str): the current category.
+            cities (Union[str, List[str]]): the cities that will be scraped.
+
+        Returns:
+            dataframes (List[Tuple[str, pd.DataFrame]]): a list containing
+                the historical data (saved in a dataframe format) for the given
+                cities.
+        """
+        dataframes = pd.DataFrame()
+
+        for city in cities:
+            city_dataframe = pd.DataFrame()
+
+            full_url = f"{BASE_URL}/{category}/in/{city.replace(' ', '-')}"
+            full_url = full_url + f"?displayCurrency={self.currency}"
+
+            request = requests.get(full_url, timeout=300)
+
+            if request.status_code == 200:
+                numbeo_html_data = BeautifulSoup(request.text, "html.parser")
+                main_table = numbeo_html_data.find(
+                    "table", attrs={"class": "data_wide_table new_bar_table"}
+                )
+
+                main_table_rows = main_table.find_all("tr")
+                current_header = None
+
+                for row in main_table_rows:
+                    data = row.find_all("td")
+                    data = [d.text for d in data]
+
+                    if len(data) == 0:
+                        current_header = row.find_all("th")[0].text
+                        current_header = current_header.replace("\n", "").strip()
+                        continue
+
+                    row_df = None
+
+                    if len(data) == 2:
+                        item, mean = data
+                        row_df = pd.DataFrame(
+                            {
+                                "Header": [current_header],
+                                "Category": [item],
+                                "Mean": [mean],
+                                "Range": [pd.NA],
+                            }
+                        )
+
+                    if len(data) == 3:
+                        item, mean, data_range = data
+                        data_range = data_range.replace("\n", "").strip()
+                        row_df = pd.DataFrame(
+                            {
+                                "Header": [current_header],
+                                "Category": [item],
+                                "Mean": [mean],
+                                "Range": [data_range],
+                            }
+                        )
+
+                    row_df["City"] = [city] * row_df.shape[0]
+
+                    city_dataframe = pd.concat(
+                        [city_dataframe, row_df], axis=0, ignore_index=True
+                    )
+
+            dataframes = pd.concat(
+                [dataframes, city_dataframe], axis=0, ignore_index=True
+            )
+
         return dataframes

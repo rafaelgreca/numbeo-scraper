@@ -30,7 +30,8 @@ def partial_model(model: Type[BaseModel]):
         **{
             field_name: make_field_optional(field_info)
             for field_name, field_info in model.model_fields.items()
-            if field_name in ["regions", "currency", "countries", "historical_items"]
+            if field_name
+            in ["regions", "currency", "countries", "historical_items", "cities"]
         },
     )
 
