@@ -189,23 +189,20 @@ class NumbeoScraper:
                         itens=self.historical_items,
                         countries=self.countries,
                     )
-                    data_name = f"{category}_{self.mode}"
-                    dataframes.append((data_name, data))
                 else:
                     data = self._country_mode(
                         category=category,
                         regions=self.regions,
                     )
-                    data_name = f"{category}_{self.mode}"
-                    dataframes.append((data_name, data))
             else:
                 if category in ["cost-of-living", "property-investment"]:
                     data = self._city_mode(
                         category=category,
                         cities=self.cities,
                     )
-                    data_name = f"{category}_{self.mode}"
-                    dataframes.append((data_name, data))
+
+            data_name = f"{category}_{self.mode}"
+            dataframes.append((data_name, data))
 
         return dataframes
 
@@ -237,7 +234,8 @@ class NumbeoScraper:
                     full_url = f"{BASE_URL}/{category}/{country_page}?title={year}"
                 else:
                     region_code = REGIONS_MAPPING[region]
-                    full_url = f"{BASE_URL}/{category}/{country_page}?title={year}&region={region_code}"
+                    full_url = f"{BASE_URL}/{category}/{country_page}"
+                    full_url = full_url + f"?title={year}&region={region_code}"
 
                 request = requests.get(full_url, timeout=300)
 
