@@ -207,6 +207,11 @@ class NumbeoScraper:
                         category=category,
                         cities=self.cities,
                     )
+                elif category == "traffic":
+                    data = self._traffic_city_mode(
+                        category=category,
+                        cities=self.cities,
+                    )
 
             data_name = f"{category}_{self.mode}"
             dataframes.append((data_name, data))
@@ -438,9 +443,9 @@ class NumbeoScraper:
                         [city_dataframe, row_df], axis=0, ignore_index=True
                     )
 
-            dataframes = pd.concat(
-                [dataframes, city_dataframe], axis=0, ignore_index=True
-            )
+                dataframes = pd.concat(
+                    [dataframes, city_dataframe], axis=0, ignore_index=True
+                )
 
         return dataframes
 
@@ -459,8 +464,8 @@ class NumbeoScraper:
 
         Returns:
             dataframes (List[Tuple[str, pd.DataFrame]]): a list containing
-                the historical data (saved in a dataframe format) for the given
-                cities.
+                the quality of life data (saved in a dataframe format)
+                for the given cities.
         """
         dataframes = pd.DataFrame()
 
@@ -486,7 +491,7 @@ class NumbeoScraper:
                 )
                 main_table_rows_cont = numbeo_html_data.find_all(
                     "td", attrs={"style": "text-align: center"}
-                ) # getting the table footer level individually
+                )  # getting the table footer level individually
                 main_table_rows.extend(main_table_rows_cont)
                 rows_levels = [row.text.strip() for row in main_table_rows]
 
@@ -495,7 +500,7 @@ class NumbeoScraper:
                     "a", attrs={"class": "discreet_link"}
                 )
                 rows_labels = [row.text.strip() for row in main_table_rows][1:-1]
-                rows_labels.append("Quality of Life Index") # fixing the footer label
+                rows_labels.append("Quality of Life Index")  # fixing the footer label
 
                 row_df = pd.DataFrame(
                     {
@@ -511,8 +516,116 @@ class NumbeoScraper:
                     [city_dataframe, row_df], axis=0, ignore_index=True
                 )
 
-            dataframes = pd.concat(
-                [dataframes, city_dataframe], axis=0, ignore_index=True
-            )
+                dataframes = pd.concat(
+                    [dataframes, city_dataframe], axis=0, ignore_index=True
+                )
+
+        return dataframes
+
+    def _traffic_city_mode(
+        self,
+        category: str,
+        cities: Union[str, List[str]],
+    ) -> pd.DataFrame:
+        """
+        Extracts the traffic considering the 'city mode',
+        which means that the data extracted will be for the desired city.
+
+        Args:
+            category (str): the current category.
+            cities (Union[str, List[str]]): the cities that will be scraped.
+
+        Returns:
+            dataframes (List[Tuple[str, pd.DataFrame]]): a list containing
+                the traffic data (saved in a dataframe format) for the given
+                cities.
+        """
+        dataframes = pd.DataFrame()
+
+        for city in cities:
+            city_dataframe = pd.DataFrame()
+
+            full_url = f"{BASE_URL}/{category}/in/{city.replace(' ', '-')}"
+
+            request = requests.get(full_url, timeout=300)
+
+            if request.status_code == 200:
+                numbeo_html_data = BeautifulSoup(request.text, "html.parser")
+
+                # getting the tables headers
+                tables_headers = numbeo_html_data.find_all("h3")
+
+                # getting the tables
+                tables = [
+                    tbl for tbl in numbeo_html_data.find_all("table") if not tbl.attrs
+                ][:-1]
+
+                for header, table in zip(
+                    tables_headers,
+                    tables,
+                ):
+                    # getting only the header text
+                    header_text = header.text
+
+                    # getting the table caption ids
+                    caption_ids = table.find_all(
+                        "td",
+                        attrs={"class": "trafficCaptionTd"},
+                    )
+                    caption_ids = [id.text.strip() for id in caption_ids]
+
+                    # getting the table values
+                    values = table.find_all(
+                        "td",
+                        attrs={"class": "trafficTd"},
+                    )
+                    values = [value.text.strip() for value in values]
+
+                    row_df = pd.DataFrame(
+                        {
+                            "Header": [header_text] * len(values),
+                            "Category": caption_ids,
+                            "Value": values,
+                        }
+                    )
+
+                    city_dataframe = pd.concat(
+                        [city_dataframe, row_df], axis=0, ignore_index=True
+                    )
+
+                # getting the indices table
+                indices_table = numbeo_html_data.find(
+                    "table", attrs={"class": "table_indices"}
+                )
+
+                # extracting the indices name
+                indices = [ind for ind in indices_table.find_all("td") if not ind.attrs]
+                indices = [indice.text.strip() for indice in indices]
+
+                # extracting the indices values
+                indices_values = indices_table.find_all(
+                    "td",
+                    attrs={"style": "text-align: right"},
+                )
+                indices_values = [value.text.strip() for value in indices_values]
+
+                # creating an index tables
+                indices_df = pd.DataFrame(
+                    {
+                        "Header": ["Index"] * len(indices),
+                        "Category": indices,
+                        "Value": indices_values,
+                    }
+                )
+
+                city_dataframe = pd.concat(
+                    [city_dataframe, indices_df], axis=0, ignore_index=True
+                )
+
+                city_dataframe["City"] = [city] * city_dataframe.shape[0]
+
+                dataframes = pd.concat(
+                    [dataframes, city_dataframe], axis=0, ignore_index=True
+                )
 
         return dataframes

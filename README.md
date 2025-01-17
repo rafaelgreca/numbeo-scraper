@@ -97,7 +97,7 @@ python3 -m unittest discover -p 'test_*.py'
     - [ ] Extract the data related to the crime index of each city.
     - [ ] Extract the data related to the health care index of each city.
     - [ ] Extract the data related to the pollution index of each city.
-    - [ ] Extract the data related to the traffic index of each city.
+    - [x] Extract the data related to the traffic index of each city.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
