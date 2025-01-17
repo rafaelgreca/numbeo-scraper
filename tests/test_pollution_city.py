@@ -28,7 +28,7 @@ class TestPollutionCity(unittest.TestCase):
             years=2019,
             mode="city",
             currency="EUR",
-            cities=["San Antonio", "Lisbon", "Boston"],
+            cities=["San Antonio", "Maastricht", "Lisbon", "Boston"],
         )
 
         scraper = NumbeoScraper(
