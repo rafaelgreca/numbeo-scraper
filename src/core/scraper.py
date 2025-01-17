@@ -212,6 +212,16 @@ class NumbeoScraper:
                         category=category,
                         cities=self.cities,
                     )
+                elif category == "pollution":
+                    data = self._pollution_city_mode(
+                        category=category,
+                        cities=self.cities,
+                    )
+                else:
+                    data = self._others_city_mode(
+                        category=category,
+                        cities=self.cities,
+                    )
 
             data_name = f"{category}_{self.mode}"
             dataframes.append((data_name, data))
@@ -345,7 +355,6 @@ class NumbeoScraper:
                             [dataframe, new_row], axis=0, ignore_index=True
                         )
 
-                # dataframe[item] = dataframe[item].astype(float)
                 items_dataframe.append(dataframe)
 
             if len(items_dataframe) > 1:
@@ -388,8 +397,9 @@ class NumbeoScraper:
 
         for city in cities:
             city_dataframe = pd.DataFrame()
+            city = city.title().replace(" ", "-")  # formatting the city's name
 
-            full_url = f"{BASE_URL}/{category}/in/{city.replace(' ', '-')}"
+            full_url = f"{BASE_URL}/{category}/in/{city}"
             full_url = full_url + f"?displayCurrency={self.currency}"
 
             request = requests.get(full_url, timeout=300)
@@ -471,8 +481,9 @@ class NumbeoScraper:
 
         for city in cities:
             city_dataframe = pd.DataFrame()
+            city = city.title().replace(" ", "-")  # formatting the city's name
 
-            full_url = f"{BASE_URL}/{category}/in/{city.replace(' ', '-')}"
+            full_url = f"{BASE_URL}/{category}/in/{city}"
 
             request = requests.get(full_url, timeout=300)
 
@@ -544,8 +555,9 @@ class NumbeoScraper:
 
         for city in cities:
             city_dataframe = pd.DataFrame()
+            city = city.title().replace(" ", "-")  # formatting the city's name
 
-            full_url = f"{BASE_URL}/{category}/in/{city.replace(' ', '-')}"
+            full_url = f"{BASE_URL}/{category}/in/{city}"
 
             request = requests.get(full_url, timeout=300)
 
@@ -620,6 +632,281 @@ class NumbeoScraper:
 
                 city_dataframe = pd.concat(
                     [city_dataframe, indices_df], axis=0, ignore_index=True
+                )
+
+                city_dataframe["City"] = [city] * city_dataframe.shape[0]
+
+                dataframes = pd.concat(
+                    [dataframes, city_dataframe], axis=0, ignore_index=True
+                )
+
+        return dataframes
+
+    def _others_city_mode(
+        self,
+        category: str,
+        cities: Union[str, List[str]],
+    ) -> pd.DataFrame:
+        """
+        Extracts others measurements (crime and health care) considering
+        the 'city mode', which means that the data extracted will be for the desired city.
+
+        Args:
+            category (str): the current category.
+            cities (Union[str, List[str]]): the cities that will be scraped.
+
+        Returns:
+            dataframes (List[Tuple[str, pd.DataFrame]]): a list containing
+                the data (saved in a dataframe format) for the given cities.
+        """
+        dataframes = pd.DataFrame()
+
+        for city in cities:
+            city_dataframe = pd.DataFrame()
+            city = city.title().replace(" ", "-")  # formatting the city's name
+
+            full_url = f"{BASE_URL}/{category}/in/{city}"
+
+            request = requests.get(full_url, timeout=300)
+
+            if request.status_code == 200:
+                numbeo_html_data = BeautifulSoup(request.text, "html.parser")
+
+                # getting the tables headers
+                tables_headers = numbeo_html_data.find_all("h2")
+
+                # getting the tables
+                tables = numbeo_html_data.find_all(
+                    "table",
+                    attrs={
+                        "class": "table_builder_with_value_explanation data_wide_table"
+                    },
+                )
+
+                for header, table in zip(
+                    tables_headers,
+                    tables,
+                ):
+                    # getting only the header text
+                    header_text = header.text
+
+                    # getting the attributes name
+                    attributes_name = table.find_all(
+                        "td",
+                        attrs={"class": "columnWithName"},
+                    )
+                    attributes_name = [att.text.strip() for att in attributes_name]
+
+                    # getting the attributes value
+                    values = table.find_all(
+                        "td",
+                        attrs={"class": "indexValueTd"},
+                    )
+                    values = [value.text.strip() for value in values]
+
+                    # getting the levels value
+                    levels = table.find_all(
+                        "td",
+                        attrs={"class": "hidden_on_small_mobile"},
+                    )
+                    levels = [level.text.strip() for level in levels]
+
+                    row_df = pd.DataFrame(
+                        {
+                            "Header": [header_text] * len(values),
+                            "Category": attributes_name,
+                            "Value": values,
+                            "Level": levels,
+                        }
+                    )
+
+                    city_dataframe = pd.concat(
+                        [city_dataframe, row_df], axis=0, ignore_index=True
+                    )
+
+                # getting the indices table
+                indices_table = numbeo_html_data.find(
+                    "table", attrs={"class": "table_indices"}
+                )
+
+                # extracting the indices name
+                indices = [ind for ind in indices_table.find_all("td") if not ind.attrs]
+                indices = [indice.text.strip() for indice in indices]
+
+                # extracting the indices values
+                indices_values = indices_table.find_all(
+                    "td",
+                    attrs={"style": "text-align: right"},
+                )
+                indices_values = [value.text.strip() for value in indices_values]
+
+                # creating an index tables
+                indices_df = pd.DataFrame(
+                    {
+                        "Header": ["Index"] * len(indices),
+                        "Category": indices,
+                        "Value": indices_values,
+                        "Level": [pd.NA] * len(indices),
+                    }
+                )
+
+                city_dataframe = pd.concat(
+                    [city_dataframe, indices_df], axis=0, ignore_index=True
+                )
+
+                city_dataframe["City"] = [city] * city_dataframe.shape[0]
+
+                dataframes = pd.concat(
+                    [dataframes, city_dataframe], axis=0, ignore_index=True
+                )
+
+        return dataframes
+
+    def _pollution_city_mode(
+        self,
+        category: str,
+        cities: Union[str, List[str]],
+    ) -> pd.DataFrame:
+        """
+        Extracts pollution data considering the 'city mode',
+        which means that the data extracted will be for the desired city.
+
+        Args:
+            category (str): the current category.
+            cities (Union[str, List[str]]): the cities that will be scraped.
+
+        Returns:
+            dataframes (List[Tuple[str, pd.DataFrame]]): a list containing
+                the pollution data (saved in a dataframe format) for the given
+                cities.
+        """
+        dataframes = pd.DataFrame()
+
+        for city in cities:
+            city_dataframe = pd.DataFrame()
+            city = city.title().replace(" ", "-")  # formatting the city's name
+
+            full_url = f"{BASE_URL}/{category}/in/{city}"
+
+            request = requests.get(full_url, timeout=300)
+
+            if request.status_code == 200:
+                numbeo_html_data = BeautifulSoup(request.text, "html.parser")
+
+                # getting the tables headers
+                tables_headers = numbeo_html_data.find_all("h2")
+
+                # getting the tables
+                tables = numbeo_html_data.find_all(
+                    "table",
+                    attrs={
+                        "class": "table_builder_with_value_explanation data_wide_table"
+                    },
+                )
+
+                for header, table in zip(
+                    tables_headers,
+                    tables,
+                ):
+                    # getting only the header text
+                    header_text = header.text
+
+                    # getting the attributes name
+                    attributes_name = table.find_all(
+                        "td",
+                        attrs={"class": "columnWithName"},
+                    )
+                    attributes_name = [att.text.strip() for att in attributes_name]
+
+                    # getting the attributes value
+                    values = table.find_all(
+                        "td",
+                        attrs={"class": "indexValueTd"},
+                    )
+                    values = [value.text.strip() for value in values]
+
+                    # getting the levels value
+                    levels = table.find_all(
+                        "td",
+                        attrs={"class": "hidden_on_small_mobile"},
+                    )
+                    levels = [level.text.strip() for level in levels]
+
+                    row_df = pd.DataFrame(
+                        {
+                            "Header": [header_text] * len(values),
+                            "Category": attributes_name,
+                            "Value": values,
+                            "Level": levels,
+                        }
+                    )
+
+                    city_dataframe = pd.concat(
+                        [city_dataframe, row_df], axis=0, ignore_index=True
+                    )
+
+                # getting pollution indices table
+                pollution_indices_table = numbeo_html_data.find(
+                    "table", attrs={"class": "who_pollution_data_widget"}
+                )
+
+                # extracting the indices name
+                indices = [
+                    ind
+                    for ind in pollution_indices_table.find_all("td")
+                    if not ind.attrs
+                ]
+                indices = [indice.text.strip().replace(":", "") for indice in indices]
+
+                # extracting the indices values
+                indices_values = pollution_indices_table.find_all(
+                    "td",
+                    attrs={"style": "text-align: right"},
+                )
+                indices_values = [value.text.strip() for value in indices_values]
+
+                # creating an index tables
+                pol_indices_df = pd.DataFrame(
+                    {
+                        "Header": ["Index"] * len(indices),
+                        "Category": indices,
+                        "Value": indices_values[:-1] + [pd.NA],
+                        "Level": [pd.NA, pd.NA, indices_values[-1]],
+                    }
+                )
+
+                # getting the indices table
+                indices_table = numbeo_html_data.find(
+                    "table", attrs={"class": "table_indices"}
+                )
+
+                # extracting the indices name
+                indices = [ind for ind in indices_table.find_all("td") if not ind.attrs]
+                indices = [indice.text.strip() for indice in indices]
+
+                # extracting the indices values
+                indices_values = indices_table.find_all(
+                    "td",
+                    attrs={"style": "text-align: right"},
+                )
+                indices_values = [
+                    value.text.strip().replace(":", "") for value in indices_values
+                ]
+
+                # creating an index tables
+                indices_df = pd.DataFrame(
+                    {
+                        "Header": ["Index"] * len(indices),
+                        "Category": indices,
+                        "Value": indices_values,
+                        "Level": [pd.NA] * len(indices),
+                    }
+                )
+
+                city_dataframe = pd.concat(
+                    [city_dataframe, indices_df, pol_indices_df],
+                    axis=0,
+                    ignore_index=True,
                 )
 
                 city_dataframe["City"] = [city] * city_dataframe.shape[0]
