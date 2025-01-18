@@ -1,80 +1,17 @@
 import requests
-import re
 from typing import List, Tuple, Union
 from functools import reduce
 
 import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
+from loguru import logger
 
+from .utils import REGIONS_MAPPING, ITENS_MAPPING
 from ..schema.input import Input
 
 
 BASE_URL = "https://www.numbeo.com"
-REGIONS_MAPPING = {
-    "Africa": "002",
-    "America": "019",
-    "Asia": "142",
-    "Europe": "150",
-    "Oceania": "009",
-}
-ITENS_MAPPING = {
-    "Price per Square Meter to Buy Apartment Outside of Centre": 101,
-    "Price per Square Meter to Buy Apartment in City Centre": 100,
-    "International Primary School, Yearly for 1 Child": 228,
-    "Preschool (or Kindergarten), Full Day, Private, Monthly for 1 Child": 224,
-    "1 Pair of Jeans (Levis 501 Or Similar)": 60,
-    "1 Pair of Men Leather Business Shoes": 66,
-    "1 Pair of Nike Running Shoes (Mid-Range)": 64,
-    "1 Summer Dress in a Chain Store (Zara, H&M, ...)": 62,
-    "Apples (1kg)": 110,
-    "Banana (1kg)": 118,
-    "Beef Round (1kg) (or Equivalent Back Leg Red Meat)": 121,
-    "Bottle of Wine (Mid-Range)": 14,
-    "Chicken Fillets (1kg)": 19,
-    "Cigarettes 20 Pack (Marlboro)": 17,
-    "Domestic Beer (0.5 liter bottle)": 15,
-    "Eggs (regular) (12)": 11,
-    "Markets: Imported Beer (0.33 liter bottle)": 16,
-    "Lettuce (1 head)": 113,
-    "Loaf of Fresh White Bread (500g)": 9,
-    "Local Cheese (1kg)": 12,
-    "Milk (regular), (1 liter)": 8,
-    "Onion (1kg)": 119,
-    "Oranges (1kg)": 111,
-    "Potato (1kg)": 112,
-    "Rice (white), (1kg)": 115,
-    "Tomato (1kg)": 116,
-    "Water (1.5 liter bottle)": 13,
-    "Apartment (1 bedroom) Outside of Centre": 27,
-    "Apartment (1 bedroom) in City Centre": 26,
-    "Apartment (3 bedrooms) Outside of Centre": 29,
-    "Apartment (3 bedrooms) in City Centre": 28,
-    "Cappuccino (regular)": 114,
-    "Coke/Pepsi (0.33 liter bottle)": 6,
-    "Domestic Beer (0.5 liter draught)": 4,
-    "Restaurants: Imported Beer (0.33 liter bottle)": 5,
-    "McMeal at McDonalds (or Equivalent Combo Meal)": 3,
-    "Meal for 2 People, Mid-range Restaurant, Three-course": 2,
-    "Meal, Inexpensive Restaurant": 1,
-    "Water (0.33 liter bottle)": 7,
-    "Average Monthly Net Salary (After Tax)": 105,
-    "Mortgage Interest Rate in Percentages (%), Yearly, for 20 Years Fixed-Rate": 106,
-    "Cinema, International Release, 1 Seat": 44,
-    "Fitness Club, Monthly Fee for 1 Adult": 40,
-    "Tennis Court Rent (1 Hour on Weekend)": 42,
-    "Gasoline (1 liter)": 24,
-    "Monthly Pass (Regular Price)": 20,
-    "One-way Ticket (Local Transport)": 18,
-    "Taxi 1hour Waiting (Normal Tariff)": 109,
-    "Taxi 1km (Normal Tariff)": 108,
-    "Taxi Start (Normal Tariff)": 107,
-    "Toyota Corolla Sedan 1.6l 97kW Comfort (Or Equivalent New Car)": 206,
-    "Volkswagen Golf 1.4 90 KW Trendline (Or Equivalent New Car)": 25,
-    "Basic (Electricity, Heating, Cooling, Water, Garbage) for 85m2 Apartment": 30,
-    "Internet (60 Mbps or More, Unlimited Data, Cable/ADSL)": 33,
-    "Mobile Phone Monthly Plan with Calls and 10GB+ Data": 34,
-}
 
 
 class NumbeoScraper:
@@ -92,13 +29,15 @@ class NumbeoScraper:
         Args:
             config (Input): the configuration values obtained from the YAML file.
         """
+        # initializing important variables
         if not config.regions is None:
             if isinstance(config.regions, str):
                 self.regions = [config.regions]
             else:
                 self.regions = config.regions
         else:
-            self.regions = [None]
+            self.regions = [None]  # we're creating a list to make it easier
+            # to iterate over the regions
 
         if not config.historical_items is None:
             if isinstance(config.historical_items, str):
@@ -156,25 +95,33 @@ class NumbeoScraper:
             try:
                 assert not self.cities is None
             except AssertionError as error:
+                logger.error("Cities can not be empty when 'city' mode is chosen!\n")
                 raise AssertionError("Cities can not be empty!\n") from error
 
-        # validating if the currency value is None for a few, specific cases
+        # validating if the currency value is None for a few specific cases
         if self.mode == "country":
             if "historical-data" in self.categories:
                 try:
                     assert not self.currency is None
                 except AssertionError as error:
+                    logger.error(
+                        "Currency can not be empty when 'historical-data' category is chosen!\n"
+                    )
                     raise AssertionError("Currency can not be empty!\n") from error
         else:
             if any(
                 c in self.categories for c in ["cost-of-living", "property-investment"]
             ):
-                if "historical-data" in self.categories:
-                    try:
-                        assert not self.currency is None
-                    except AssertionError as error:
-                        raise AssertionError("Currency can not be empty!\n") from error
+                try:
+                    assert not self.currency is None
+                except AssertionError as error:
+                    logger.error(
+                        "Currency can not be empty when 'cost-of-living' or 'property-investment'"
+                        + "is chosen for 'city' mode!\n"
+                    )
+                    raise AssertionError("Currency can not be empty!\n") from error
 
+    @logger.catch
     def scrap(
         self,
     ) -> List[Tuple[str, pd.DataFrame]]:
@@ -191,6 +138,7 @@ class NumbeoScraper:
         # iterating over the categories
         for category in self.categories:
             data = pd.DataFrame()
+            logger.info(f"Collecting '{category}' data using mode '{self.mode}'.\n")
 
             if self.mode == "country":
                 if category == "historical-data":
@@ -261,10 +209,17 @@ class NumbeoScraper:
 
                 if region is None:
                     full_url = f"{BASE_URL}/{category}/{country_page}?title={year}"
+                    logger.info(
+                        f"Collecting '{category}' data in 'country' mode for year '{year}'.\n"
+                    )
                 else:
                     region_code = REGIONS_MAPPING[region]
                     full_url = f"{BASE_URL}/{category}/{country_page}"
                     full_url = full_url + f"?title={year}&region={region_code}"
+                    logger.info(
+                        f"Collecting '{category}' data in 'country' mode "
+                        + f"for year '{year}' and region '{region}'.\n"
+                    )
 
                 request = requests.get(full_url, timeout=300)
 
@@ -297,11 +252,22 @@ class NumbeoScraper:
                     dataframes = pd.concat(
                         [dataframes, dataframe], axis=0, ignore_index=True
                     )
+                    logger.info(
+                        f"Found {dataframe.shape[0]} data rows and "
+                        + f"{dataframe.shape[0]} features.\n"
+                    )
+                else:
+                    logger.error(f"Could not find data for URL {full_url}.\n")
 
         if not self.countries is None:
+            logger.info(f"Selecting only the data of countries {self.countries}.\n")
             dataframes = dataframes[
                 dataframes["Country"].isin(self.countries)
             ].reset_index(drop=True)
+            logger.info(
+                f"Found {dataframes.shape[0]} data rows and "
+                + f"{dataframes.shape[0]} features.\n"
+            )
 
         return dataframes
 
@@ -335,6 +301,10 @@ class NumbeoScraper:
                 item_id = ITENS_MAPPING[item]
                 full_url = f"{BASE_URL}/{category}/{country_page}?itemId={item_id}"
                 full_url = full_url + f"&country={country}&currency={self.currency}"
+                logger.info(
+                    f"Collecting '{category}' data for country '{country}', "
+                    + f"item '{item}', and currency '{self.currency}'.\n"
+                )
 
                 request = requests.get(full_url, timeout=300)
 
@@ -361,6 +331,8 @@ class NumbeoScraper:
                         dataframe = pd.concat(
                             [dataframe, new_row], axis=0, ignore_index=True
                         )
+                else:
+                    logger.error(f"Could not find data for URL {full_url}.\n")
 
                 items_dataframe.append(dataframe)
 
@@ -371,14 +343,23 @@ class NumbeoScraper:
             else:
                 country_dataframe = items_dataframe[0].copy()
 
+            logger.info(
+                f"Found {country_dataframe.shape[0]} data rows "
+                + f"and {country_dataframe.shape[0]} features.\n"
+            )
+
             country_dataframe["Country"] = [country] * country_dataframe.shape[0]
             dataframes = pd.concat(
                 [dataframes, country_dataframe], axis=0, ignore_index=True
             )
 
+        logger.info(f"Selecting only the data from years {self.years}.\n")
         dataframes["Year"] = dataframes["Year"].astype(int)
         dataframes = dataframes[dataframes["Year"].isin(self.years)].reset_index(
             drop=True
+        )
+        logger.info(
+            f"Found {dataframes.shape[0]} data rows and {dataframes.shape[0]} features.\n"
         )
         return dataframes
 
@@ -401,6 +382,9 @@ class NumbeoScraper:
                 cities.
         """
         dataframes = pd.DataFrame()
+        logger.warning(
+            "Filter by year option can not be used for this category and mode.\n"
+        )
 
         for city in cities:
             city_dataframe = pd.DataFrame()
@@ -408,6 +392,11 @@ class NumbeoScraper:
 
             full_url = f"{BASE_URL}/{category}/in/{city}"
             full_url = full_url + f"?displayCurrency={self.currency}"
+
+            logger.info(
+                f"Collecting '{category}' data in 'city' mode "
+                + f"for city '{city}' and currency '{self.currency}'.\n"
+            )
 
             request = requests.get(full_url, timeout=300)
 
@@ -454,6 +443,11 @@ class NumbeoScraper:
                             }
                         )
 
+                    logger.info(
+                        f"Found {row_df.shape[0]} data rows "
+                        + f"and {row_df.shape[0]} features.\n"
+                    )
+
                     row_df["City"] = [city] * row_df.shape[0]
 
                     city_dataframe = pd.concat(
@@ -463,6 +457,8 @@ class NumbeoScraper:
                 dataframes = pd.concat(
                     [dataframes, city_dataframe], axis=0, ignore_index=True
                 )
+            else:
+                logger.error(f"Could not find data for URL {full_url}.\n")
 
         return dataframes
 
@@ -485,10 +481,16 @@ class NumbeoScraper:
                 for the given cities.
         """
         dataframes = pd.DataFrame()
+        logger.warning(
+            "Filter by year option can not be used for this category and mode.\n"
+        )
 
         for city in cities:
             city_dataframe = pd.DataFrame()
             city = city.title().replace(" ", "-")  # formatting the city's name
+            logger.info(
+                f"Collecting '{category}' data in 'city' mode for city '{city}'.\n"
+            )
 
             full_url = f"{BASE_URL}/{category}/in/{city}"
 
@@ -528,6 +530,11 @@ class NumbeoScraper:
                     }
                 )
 
+                logger.info(
+                    f"Found {row_df.shape[0]} data rows "
+                    + f"and {row_df.shape[0]} features.\n"
+                )
+
                 row_df["City"] = [city] * row_df.shape[0]
 
                 city_dataframe = pd.concat(
@@ -537,6 +544,8 @@ class NumbeoScraper:
                 dataframes = pd.concat(
                     [dataframes, city_dataframe], axis=0, ignore_index=True
                 )
+            else:
+                logger.error(f"Could not find data for URL {full_url}.\n")
 
         return dataframes
 
@@ -559,10 +568,16 @@ class NumbeoScraper:
                 cities.
         """
         dataframes = pd.DataFrame()
+        logger.warning(
+            "Filter by year option can not be used for this category and mode.\n"
+        )
 
         for city in cities:
             city_dataframe = pd.DataFrame()
             city = city.title().replace(" ", "-")  # formatting the city's name
+            logger.info(
+                f"Collecting '{category}' data in 'city' mode for city '{city}'.\n"
+            )
 
             full_url = f"{BASE_URL}/{category}/in/{city}"
 
@@ -599,11 +614,18 @@ class NumbeoScraper:
                     [city_dataframe, indices_df], axis=0, ignore_index=True
                 )
 
+                logger.info(
+                    f"Found {city_dataframe.shape[0]} data rows "
+                    + f"and {city_dataframe.shape[0]} features.\n"
+                )
+
                 city_dataframe["City"] = [city] * city_dataframe.shape[0]
 
                 dataframes = pd.concat(
                     [dataframes, city_dataframe], axis=0, ignore_index=True
                 )
+            else:
+                logger.error(f"Could not find data for URL {full_url}.\n")
 
         return dataframes
 
@@ -625,10 +647,16 @@ class NumbeoScraper:
                 the data (saved in a dataframe format) for the given cities.
         """
         dataframes = pd.DataFrame()
+        logger.warning(
+            "Filter by year option can not be used for this category and mode.\n"
+        )
 
         for city in cities:
             city_dataframe = pd.DataFrame()
             city = city.title().replace(" ", "-")  # formatting the city's name
+            logger.info(
+                f"Collecting '{category}' data in 'city' mode for city '{city}'.\n"
+            )
 
             full_url = f"{BASE_URL}/{category}/in/{city}"
 
@@ -668,11 +696,18 @@ class NumbeoScraper:
                     [city_dataframe, indices_df], axis=0, ignore_index=True
                 )
 
+                logger.info(
+                    f"Found {city_dataframe.shape[0]} data rows "
+                    + f"and {city_dataframe.shape[0]} features.\n"
+                )
+
                 city_dataframe["City"] = [city] * city_dataframe.shape[0]
 
                 dataframes = pd.concat(
                     [dataframes, city_dataframe], axis=0, ignore_index=True
                 )
+            else:
+                logger.error(f"Could not find data for URL {full_url}.\n")
 
         return dataframes
 
@@ -695,9 +730,15 @@ class NumbeoScraper:
                 cities.
         """
         dataframes = pd.DataFrame()
+        logger.warning(
+            "Filter by year option can not be used for this category and mode.\n"
+        )
 
         for city in cities:
             city = city.title().replace(" ", "-")  # formatting the city's name
+            logger.info(
+                f"Collecting '{category}' data in 'city' mode for city '{city}'.\n"
+            )
 
             full_url = f"{BASE_URL}/{category}/in/{city}"
 
@@ -737,6 +778,9 @@ class NumbeoScraper:
                 except AttributeError:
                     # some cities doesn't have the pollution index table,
                     # so we'll just ignore it
+                    logger.warning(
+                        f"Could not find pollution index for URL {full_url}.\n"
+                    )
                     pol_indices_df = pd.DataFrame()
 
                 # creating the indexes dataframe
@@ -752,14 +796,22 @@ class NumbeoScraper:
                     ignore_index=True,
                 )
 
+                logger.info(
+                    f"Found {city_dataframe.shape[0]} data rows "
+                    + f"and {city_dataframe.shape[0]} features.\n"
+                )
+
                 city_dataframe["City"] = [city] * city_dataframe.shape[0]
 
                 dataframes = pd.concat(
                     [dataframes, city_dataframe], axis=0, ignore_index=True
                 )
+            else:
+                logger.error(f"Could not find data for URL {full_url}.\n")
 
         return dataframes
 
+    @logger.catch
     def _get_index_table(
         self,
         html_data: BeautifulSoup,
@@ -788,6 +840,14 @@ class NumbeoScraper:
         Returns:
             pd.DataFrame: the index table in a dataframe format.
         """
+        logger.info("Getting the index table using values:\n")
+        logger.info(
+            f"index_table_class_name: {index_table_class_name}, "
+            + f"indices_values_style: {indices_values_style}, "
+            + f"pollution_index_table: {pollution_index_table}, "
+            + f"create_level_column: {create_level_column}\n"
+        )
+
         # getting the indices table
         indices_table = html_data.find("table", attrs={"class": index_table_class_name})
 
@@ -826,10 +886,12 @@ class NumbeoScraper:
 
         # deleting the 'level' column
         if not create_level_column:
+            logger.info("Deleting the 'level' column.\n")
             indices_df = indices_df.drop(columns=["Level"])
 
         return indices_df
 
+    @logger.catch
     def _get_tables_city_mode(
         self,
         tables_headers: List,
@@ -856,6 +918,12 @@ class NumbeoScraper:
         Returns:
             pd.DataFrame: the collected data in a dataframe format.
         """
+        logger.info("Getting the data table for city mode using values:\n")
+        logger.info(
+            f"attributes_class_name: {attributes_class_name}, "
+            + f"attributes_values_class_name: {attributes_values_class_name}, "
+            + f"levels_class_name: {levels_class_name}\n"
+        )
         city_dataframe = pd.DataFrame()
 
         for header, table in zip(
@@ -881,6 +949,7 @@ class NumbeoScraper:
 
             # getting the levels value
             if not levels_class_name is None:
+                logger.info("Getting the level data for all attributes.\n")
                 levels = table.find_all(
                     "td",
                     attrs={"class": levels_class_name},
