@@ -1,7 +1,9 @@
 from setuptools import setup, find_packages
 
-VERSION = "1.0.0"
-DESCRIPTION = """A Numbeo Scraper developed using Python 3."""
+VERSION = "2.0.0"
+DESCRIPTION = """
+The largest crowdsourced global database of quality of life data, including housing indicators, perceived crime rates, healthcare quality, transportation quality, and other statistics, is [Numbeo](https://www.numbeo.com/). In order to save time when searching for information about the quality of life in a particular country or city, the project's goal is to use web scraping frameworks (in this case, the BeautifulSoup4 library) to extract data from Numbeo's website.
+"""
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
@@ -13,7 +15,7 @@ setup(
     name="Numbeo Scraper",
     version=VERSION,
     author="Rafael Greca Vieira",
-    author_email="rgvieira97@gmail.com",
+    author_email="me@rgrecav.com",
     description=DESCRIPTION,
     long_description=long_description,
     long_description_content_type="text/markdown",

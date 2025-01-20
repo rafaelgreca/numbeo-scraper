@@ -513,7 +513,7 @@ class Input(BaseModel):
     categories: Union[VALID_CATEGORIES, List[VALID_CATEGORIES]]
     mode: VALID_MODES
     years: Union[VALID_YEARS, List[VALID_YEARS]]
-    regions: VALID_REGIONS
+    regions: Union[VALID_REGIONS, List[VALID_REGIONS]]
     currency: VALID_CURRENCIES
     countries: Union[VALID_COUNTRIES, List[VALID_COUNTRIES]]
     historical_items: Union[VALID_ITEMS, List[VALID_ITEMS]]

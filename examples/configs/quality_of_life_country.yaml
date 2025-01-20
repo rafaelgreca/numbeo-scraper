@@ -1,0 +1,6 @@
+categories: 'quality-of-life'
+mode: 'country'
+years: [2023, 2024, 2025] # can be a list or an int
+
+# optional parameter (can be a list or a string)
+countries: ['Germany', 'Italy']
