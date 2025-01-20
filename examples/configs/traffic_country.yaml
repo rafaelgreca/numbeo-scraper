@@ -1,0 +1,3 @@
+categories: 'traffic'
+mode: 'country'
+years: 2015 # can be a list or an int

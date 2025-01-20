@@ -1,0 +1,6 @@
+categories: ['cost-of-living', 'traffic'] # this can also be a list
+mode: 'country'
+years: [2023, 2024, 2025] # can be a list or an int
+
+# optional parameter (can be a list or a string)
+regions: ['America', 'Europe']

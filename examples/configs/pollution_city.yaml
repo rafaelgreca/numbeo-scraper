@@ -1,0 +1,4 @@
+categories: 'pollution'
+mode: 'city'
+years: [2012, 2013, 2014] # can be a list or an int
+cities: ['Utrecht', 'The Hague'] # can be a list or a string

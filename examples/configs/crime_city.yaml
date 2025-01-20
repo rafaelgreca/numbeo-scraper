@@ -1,0 +1,4 @@
+categories: 'crime'
+mode: 'city'
+years: 2021 # can be a list or an int
+cities: 'Rio De Janeiro' # can be a list or a string

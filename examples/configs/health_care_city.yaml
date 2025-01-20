@@ -1,0 +1,4 @@
+categories: 'health-care'
+mode: 'city'
+years: [2019, 2021, 2022, 2024] # can be a list or an int
+cities: ['Johannesburg', 'Toronto'] # can be a list or a string

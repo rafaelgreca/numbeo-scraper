@@ -1,0 +1,3 @@
+categories: 'pollution'
+mode: 'country'
+years: [2012, 2013, 2014] # can be a list or an int

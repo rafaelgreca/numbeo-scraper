@@ -1,0 +1,6 @@
+categories: 'crime'
+mode: 'country'
+years: 2021 # can be a list or an int
+
+# optional parameter (can be a list or a string)
+countries: 'Brazil'
